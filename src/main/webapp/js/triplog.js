@@ -7,6 +7,7 @@
  * The user must press the Start button when starting, and Stop button when stopping.
  * Knockout library is used as MVC
  *
+ *
  * @constructor
  */
 var triplog = triplog || {};
