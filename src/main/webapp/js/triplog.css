@@ -1,0 +1,5 @@
+#map-departure-canvas, #map-arrival-canvas {
+    margin: 15px;
+    height: 280px;
+    background-color: #CCC;
+}

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+    <title>Triplog application</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="utf-8"/>
+    <link rel="stylesheet" href="js-thirdparty/bootstrap.min.css" type="text/css">
+    <link rel="stylesheet" href="js/triplog.css" type="text/css">
+</head>
+<body>
+
+<div class="container">
+    <div class="row">
+        <div class="col-sm-6"><h2>Reisebok</h2></div>
+        <div class="col-sm-6">
+            <div data-bind="visible: isStartBtnVisible">
+                <button type="button" class="btn-lg pull-right"
+                        data-bind="click: start"><span data-bind="text: startButton"/></button>
+            </div>
+            <div data-bind="visible: isStopBtnVisible">
+                <button type="button" class="btn-lg pull-right"
+                        data-bind="click: stop"><span data-bind="text: stopButton"/></button>
+            </div>
+        </div>
+    </div>
+
+    <form role="form">
+        <div class="form-group">
+            <input class="form-control" type="text" data-bind="value: name">
+        </div>
+        <div class="form-group">
+            <textarea class="form-control" rows="3" data-bind="value: purpose"></textarea>
+        </div>
+        <div class="checkbox">
+            <label><input type="checkbox" data-bind="checked: travelAbroad">Utenlandsreise</label>
+        </div>
+    </form>
+
+
+
+    <label>Avreise</label>
+    <div data-bind="visible: isDepartureVisible">
+        <div class="row">
+            <div class="col-sm-12" id="map-departure-canvas"></div>
+        </div>
+    </div>
+
+    <div class="well well-sm" data-bind="text: depAddress"></div>
+
+    <div class="row">
+        <div class="col-sm-6">
+            <div class="well well-sm" data-bind="text: depDate"></div>
+        </div>
+        <div class="col-sm-4">
+            <div class="well well-sm" data-bind="text: depTime"></div>
+        </div>
+    </div>
+
+
+    <label>Ankomst</label>
+    <div data-bind="visible: isArrivalVisible">
+        <div class="row">
+            <div class="col-sm-12" id="map-arrival-canvas"></div>
+        </div>
+    </div>
+
+    <div class="well well-sm" data-bind="text: arrAddress"></div>
+
+    <div class="row">
+        <div class="col-sm-6">
+            <div class="well well-sm" data-bind="text: arrDate"></div>
+        </div>
+        <div class="col-sm-4">
+            <div class="well well-sm" data-bind="text: arrTime"></div>
+        </div>
+    </div>
+
+
+</div>
+    <script src="js-thirdparty/underscore-min.js" type="text/javascript"></script>
+    <script src="js-thirdparty/jquery.min.js" type="text/javascript"></script>
+    <script src="js-thirdparty/bootstrap.min.js" type="text/javascript"></script>
+    <script src="js-thirdparty/knockout.js" type="text/javascript"></script>
+    <script src="js-thirdparty/moment.min.js" type="text/javascript"></script>
+    <script src="https://maps.googleapis.com/maps/api/js"></script>
+
+    <script src="js/maputil.js" type="text/javascript"></script>
+    <script src="js/triplog.js" type="text/javascript"></script>
+</body>
+</html>
