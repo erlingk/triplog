@@ -20,6 +20,10 @@ triplog.ViewModel = function () {
         lastLatLng = null,
         clockTimerId = null,
         positionTimerId = null,
+        isDepTimeUpdated = true,
+        isDepAddrUpdated = true,
+        isArrTimeUpdated = true,
+        isArrAddrUpdated = true,
         state,
         stateEnum = {
             "BEGIN": "begin",
@@ -131,10 +135,10 @@ triplog.ViewModel = function () {
     };
 
     viewModel.setAddress = function (address) {
-        if (state === stateEnum.BEGIN) {
+        if (state === stateEnum.BEGIN && isDepAddrUpdated) {
             viewModel.isStartBtnVisible(true);
             viewModel.depAddress(address);
-        } else if (state === stateEnum.STARTED) {
+        } else if (state === stateEnum.STARTED && isArrAddrUpdated) {
             viewModel.isStopBtnVisible(true);
             viewModel.arrAddress(address);
         }
@@ -145,14 +149,30 @@ triplog.ViewModel = function () {
             date = dateTime.format("DD-MM-YYYY"),
             time = dateTime.format("HH:mm:ss");
 
-        if (state === stateEnum.BEGIN) {
+        if (state === stateEnum.BEGIN && isDepTimeUpdated) {
             viewModel.depDate(date);
             viewModel.depTime(time);
 
-        } else if (state === stateEnum.STARTED) {
+        } else if (state === stateEnum.STARTED && isArrTimeUpdated) {
             viewModel.arrDate(date);
             viewModel.arrTime(time);
         }
+    };
+
+    viewModel.depTimeChanged = function () {
+        isDepTimeUpdated = false;
+    };
+
+    viewModel.arrTimeChanged = function () {
+        isArrTimeUpdated = false;
+    };
+
+    viewModel.depAddrChanged = function () {
+        isDepAddrUpdated = false;
+    };
+
+    viewModel.arrAddrChanged = function () {
+        isArrAddrUpdated = false;
     };
 
     viewModel.resumeTrip = function () {
@@ -173,11 +193,10 @@ triplog.ViewModel = function () {
     };
 
     viewModel.drawStoredWaypoints = function () {
-        var waypoints = triplog.storage.getAllWaypoints();
-        console.log("draw stored waypoints: " + waypoints.length);
-
-        var i,
+        var waypoints = triplog.storage.getAllWaypoints(),
             lastLatLng = null;
+
+        console.log("draw stored waypoints: " + waypoints.length);
 
         _.each(waypoints, function (latLng) {
             if (lastLatLng !== null && map !== null) {

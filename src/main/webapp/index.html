@@ -38,25 +38,33 @@
     </form>
 
 
-
     <label>Avreise</label>
+
     <div data-bind="visible: isDepartureVisible">
         <div class="row">
             <div class="col-sm-12" id="map-departure-canvas"></div>
         </div>
     </div>
 
-    <div class="well well-sm" data-bind="text: depAddress"></div>
-
-    <div class="row">
-        <div class="col-sm-6">
-            <div class="well well-sm" data-bind="text: depDate"></div>
+    <form class="form-horizontal" role="form">
+        <div class="form-group">
+            <div class="col-sm-12">
+                <input class="form-control" type="text" data-bind="value: depAddress,
+                                                                    event: {keyup: depAddrChanged}"/>
+            </div>
         </div>
-        <div class="col-sm-4">
-            <div class="well well-sm" data-bind="text: depTime"></div>
-        </div>
-    </div>
 
+        <div class="form-group">
+            <div class="col-sm-6">
+                <input class="form-control" type="text" data-bind="value: depDate,
+                                                                    event: {keyup: depTimeChanged}"/>
+            </div>
+            <div class="col-sm-4">
+                <input class="form-control" type="text" data-bind="value: depTime,
+                                                                    event: {keyup: depTimeChanged}"/>
+            </div>
+        </div>
+    </form>
 
     <label>Ankomst</label>
     <div data-bind="visible: isArrivalVisible">
@@ -65,16 +73,25 @@
         </div>
     </div>
 
-    <div class="well well-sm" data-bind="text: arrAddress"></div>
+    <form class="form-horizontal" role="form">
+        <div class="form-group">
+            <div class="col-sm-12">
+                <input class="form-control" type="text" data-bind="value: arrAddress,
+                                                                    event: {keyup: arrAddrChanged}"/>
+            </div>
+        </div>
 
-    <div class="row">
-        <div class="col-sm-6">
-            <div class="well well-sm" data-bind="text: arrDate"></div>
+        <div class="form-group">
+            <div class="col-sm-6">
+                <input class="form-control" type="text" data-bind="value: arrDate,
+                                                                    event: {keyup: arrTimeChanged}"/>
+            </div>
+            <div class="col-sm-4">
+                <input class="form-control" type="text" data-bind="value: arrTime,
+                                                                    event: {keyup: arrTimeChanged}"/>
+            </div>
         </div>
-        <div class="col-sm-4">
-            <div class="well well-sm" data-bind="text: arrTime"></div>
-        </div>
-    </div>
+    </form>
 
 
 </div>

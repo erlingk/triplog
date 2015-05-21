@@ -1,4 +1,8 @@
 var triplog = triplog || {};
+
+/**
+ * General storage utils for tripinfo and waypoints, using HTML window.localStorage
+ */
 triplog.storage = (function () {
     'use strict';
     var isHtmlStorageSupported = function () {
