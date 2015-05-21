@@ -7,9 +7,4 @@ describe("Triplog", function() {
     it("viewModel defined", function () {
         expect(viewModel).toBeDefined();
     });
-
-    it("start button pressed", function () {
-        viewModel.start();
-        expect(viewModel.isArrivalVisible()).toBe(true);
-    });
 });

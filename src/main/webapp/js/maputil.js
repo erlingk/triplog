@@ -3,7 +3,7 @@
 var triplog = triplog || {};
 
 /**
- * General Google Map util functions
+ * General Map and positioning util functions
  */
 triplog.mapUtil = (function () {
     'use strict';
@@ -23,7 +23,7 @@ triplog.mapUtil = (function () {
         },
 
         /**
-         * Create a Google LatLng class based on latitude and longitude
+         * Create a Google LatLng class based on position with latitude and longitude
          * @param position, postion as latitude and longitude
          * @returns {google.maps.LatLng}
          */
@@ -31,6 +31,16 @@ triplog.mapUtil = (function () {
             var latitude = position.coords.latitude,
                 longitude = position.coords.longitude;
             return new google.maps.LatLng(latitude, longitude);
+        },
+
+        /**
+         * Create a Google LatLng class based on latitude and longitude coordinates
+         * @param lat
+         * @param lng
+         * @returns {google.maps.LatLng}
+         */
+        getLatLngFromCoordinates: function (lat, lng) {
+            return new google.maps.LatLng(lat, lng);
         },
 
         /**
@@ -106,7 +116,7 @@ triplog.mapUtil = (function () {
          * @param error
          */
         mapError: function (error) {
-            console.log("show map");
+            console.log("error when displaying position on map");
             switch (error.code) {
                 case error.PERMISSION_DENIED:
                     console.log("User denied the request for Geolocation.");

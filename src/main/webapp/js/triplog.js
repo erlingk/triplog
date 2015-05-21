@@ -17,11 +17,15 @@ triplog.ViewModel = function () {
     var viewModel = this,
         map,
         marker,
-        lastPosition = null,
-        wayPoints = [],
-        isDeparture = true,
+        lastLatLng = null,
         clockTimerId = null,
-        positionTimerId = null;
+        positionTimerId = null,
+        state,
+        stateEnum = {
+            "BEGIN": "begin",
+            "STARTED": "started",
+            "STOPPED": "stopped"
+        };
 
     viewModel.startButton = ko.observable("Start turen");
     viewModel.stopButton = ko.observable("Stopp turen!");
@@ -47,17 +51,28 @@ triplog.ViewModel = function () {
     viewModel.initialize = function () {
         console.log("initialize");
         ko.applyBindings(viewModel);
-        triplog.mapUtil.getPosition(viewModel.show_map); // show_map as callback
+
+        state = stateEnum.BEGIN;
+
+        if (!triplog.storage.isWaypointStorageEmpty()) {
+            viewModel.resumeTrip();
+        } else {
+            triplog.mapUtil.getPosition(viewModel.show_map); // show_map as callback
+        }
     };
 
     viewModel.start = function () {
         console.log("start");
-        isDeparture = false;
-        wayPoints = [];
+        state = stateEnum.STARTED;
 
-        viewModel.isDepartureVisible(isDeparture);
-        viewModel.isArrivalVisible(!isDeparture);
+        viewModel.isDepartureVisible(false);
+        viewModel.isArrivalVisible(true);
         viewModel.isStartBtnVisible(false);
+
+        triplog.storage.removeAllTriplogData();
+        triplog.storage.storeTripInfo(viewModel.name(), viewModel.purpose(), viewModel.travelAbroad());
+        triplog.storage.storeDeparture(viewModel.depAddress(), viewModel.depDate(), viewModel.depTime());
+        triplog.storage.appendLatLng(lastLatLng);
 
         triplog.mapUtil.getPosition(viewModel.show_map);
     };
@@ -66,11 +81,14 @@ triplog.ViewModel = function () {
         var latLng = triplog.mapUtil.getLatLng(position),
             mapDepCanvas = document.getElementById('map-departure-canvas'),
             mapArrCanvas = document.getElementById('map-arrival-canvas'),
-            mapCanvas = isDeparture ? mapDepCanvas : mapArrCanvas;
+            mapCanvas = state === stateEnum.BEGIN ? mapDepCanvas : mapArrCanvas;
 
         map = triplog.mapUtil.createMap(latLng, mapCanvas);
         marker = triplog.mapUtil.createMarker(latLng, map);
 
+        if (triplog.storage.getAllWaypoints().length > 1 && state === stateEnum.STARTED) {
+            viewModel.drawStoredWaypoints();
+        }
         viewModel.startTimers();
     };
 
@@ -94,24 +112,29 @@ triplog.ViewModel = function () {
 
     viewModel.updatePosition = function (position) {
         console.log("updatePosition");
-        var newPosition = triplog.mapUtil.getLatLng(position);
+        var newLatLng = triplog.mapUtil.getLatLng(position);
 
-        wayPoints.push(newPosition);
-        map.panTo(newPosition);
-        marker.setPosition(newPosition);
-        triplog.mapUtil.getAddress(newPosition, viewModel.setAddress);
+        map.panTo(newLatLng);
+        marker.setPosition(newLatLng);
+        triplog.mapUtil.getAddress(newLatLng, viewModel.setAddress);
 
-        if (lastPosition !== null && !isDeparture) {
-            triplog.mapUtil.drawRoute(map, lastPosition, newPosition);
+        if (state === stateEnum.STARTED) {
+            triplog.storage.storeTripInfo(viewModel.name(), viewModel.purpose(), viewModel.travelAbroad());
+            triplog.storage.storeDeparture(viewModel.depAddress(), viewModel.depDate(), viewModel.depTime());
+            triplog.storage.appendLatLng(newLatLng);
+            if (lastLatLng !== null) {
+                triplog.mapUtil.drawRoute(map, lastLatLng, newLatLng);
+            }
         }
-        lastPosition = newPosition;
+
+        lastLatLng = newLatLng;
     };
 
     viewModel.setAddress = function (address) {
-        if (isDeparture) {
+        if (state === stateEnum.BEGIN) {
             viewModel.isStartBtnVisible(true);
             viewModel.depAddress(address);
-        } else {
+        } else if (state === stateEnum.STARTED) {
             viewModel.isStopBtnVisible(true);
             viewModel.arrAddress(address);
         }
@@ -122,18 +145,57 @@ triplog.ViewModel = function () {
             date = dateTime.format("DD-MM-YYYY"),
             time = dateTime.format("HH:mm:ss");
 
-        if (isDeparture) {
+        if (state === stateEnum.BEGIN) {
             viewModel.depDate(date);
             viewModel.depTime(time);
-        } else {
+
+        } else if (state === stateEnum.STARTED) {
             viewModel.arrDate(date);
             viewModel.arrTime(time);
         }
     };
 
-    viewModel.stop = function () {
-        viewModel.stopTimers();
+    viewModel.resumeTrip = function () {
+        state = stateEnum.STARTED;
+        viewModel.name(triplog.storage.getTripInfo().name);
+        viewModel.purpose(triplog.storage.getTripInfo().purpose);
+        viewModel.travelAbroad(triplog.storage.getTripInfo().travelAbroad);
 
+        viewModel.depAddress(triplog.storage.getDeparture().address);
+        viewModel.depDate(triplog.storage.getDeparture().date);
+        viewModel.depTime(triplog.storage.getDeparture().time);
+
+        viewModel.isDepartureVisible(false);
+        viewModel.isArrivalVisible(true);
+        viewModel.isStartBtnVisible(false);
+
+        triplog.mapUtil.getPosition(viewModel.show_map); // show_map as callback
+    };
+
+    viewModel.drawStoredWaypoints = function () {
+        var waypoints = triplog.storage.getAllWaypoints();
+        console.log("draw stored waypoints: " + waypoints.length);
+
+        var i,
+            lastLatLng = null;
+
+        _.each(waypoints, function (latLng) {
+            if (lastLatLng !== null && map !== null) {
+                //console.log("lastLatLng: " + lastLatLng);
+                //console.log("latLng: " + latLng);
+                triplog.mapUtil.drawRoute(map, lastLatLng, latLng);
+            }
+            lastLatLng = latLng;
+        });
+    };
+
+    viewModel.stop = function () {
+        if (state === stateEnum.STOPPED) {
+            return; //Already stopped
+        }
+
+        viewModel.stopTimers();
+        state = stateEnum.STOPPED;
         console.log("stop");
 
         console.log("Navn: " + viewModel.name());
@@ -148,12 +210,8 @@ triplog.ViewModel = function () {
         console.log("arrDate: " + viewModel.arrDate());
         console.log("arrTime: " + viewModel.arrTime());
 
-        console.log("Number of waypoints: " + wayPoints.length);
-
-        //viewModel.isDepartureVisible(false);
-        //viewModel.isArrivalVisible(true);
-        //viewModel.stopButton("Godtatt");
-        //viewModel.isStopBtnVisible(false);
+        triplog.storage.removeAllTriplogData();
+        viewModel.stopButton("Godtatt");
     };
 
     viewModel.stopTimers = function () {
