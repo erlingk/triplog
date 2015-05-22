@@ -10,27 +10,28 @@ triplog.mapUtil = (function () {
 
     return {
         /**
-         * Get GPS position as latitude and longitude.
-         * @param callback, function called when position is found
+         * Get GPS position, using a callback containing latitude and longitude when position is found
+         * @param callback
          */
-        getPosition: function (callback) {
+        getPosition: function (callback, errCallback) {
             if (navigator.geolocation) {
                 var options = {enableHighAccuracy: true};
-                navigator.geolocation.getCurrentPosition(callback, triplog.mapUtil.mapError, options);
+                if (typeof errCallback === 'undefined') {
+                    errCallback = triplog.mapUtil.logError;
+                }
+                navigator.geolocation.getCurrentPosition(callback, errCallback, options);
             } else {
                 console.log("Geolocation is not supported.");
             }
         },
 
         /**
-         * Create a Google LatLng class based on position with latitude and longitude
-         * @param position, postion as latitude and longitude
+         * Create a Google LatLng class based on position containing latitude and longitude
+         * @param position, postion containing latitude and longitude
          * @returns {google.maps.LatLng}
          */
         getLatLng: function (position) {
-            var latitude = position.coords.latitude,
-                longitude = position.coords.longitude;
-            return new google.maps.LatLng(latitude, longitude);
+            return triplog.mapUtil.getLatLngFromCoordinates(position.coords.latitude, position.coords.longitude);
         },
 
         /**
@@ -93,9 +94,11 @@ triplog.mapUtil = (function () {
         },
 
         /**
-         * Get a full address (street name/nr, postal area and country) based on position
+         * Get address (street name/nr, postal area and country) based on latLng class
+         * Using a callback when the address is found
+         * Using google.maps.Geocoder()
          * @param latLng
-         * @param callback, function called when full address is found
+         * @param callback
          */
         getAddress: function (latLng, callback) {
             var geocoder = new google.maps.Geocoder();
@@ -107,15 +110,40 @@ triplog.mapUtil = (function () {
                     } else {
                         console.log("No address found");
                     }
+                } else {
+                    console.log("Not able to get address from latitude and longitude: " + status);
                 }
             });
         },
 
         /**
-         * Map different errors returned by navigator.geolocation.getCurrentPosition
+         * Get latLng position based on address (street name/nr, postal area and country).
+         * Using a callback when the latLng position is found
+         * Using google.maps.Geocoder
+         * @param latLng
+         * @param callback, function called when position is found
+         */
+        getLatLngFromAddress: function (address, callback) {
+            var geocoder = new google.maps.Geocoder();
+            geocoder.geocode({ 'address': address}, function (results, status) {
+                if (status === google.maps.GeocoderStatus.OK) {
+                    if (results[0]) {
+                        var latLng = results[0].geometry.location;
+                        callback(latLng);
+                    } else {
+                        console.log("Latitude and longitude not found");
+                    }
+                } else {
+                    console.log("Not able to get latitude and longitude from address: " + status);
+                }
+            });
+        },
+
+        /**
+         * Log different errors returned by navigator.geolocation.getCurrentPosition
          * @param error
          */
-        mapError: function (error) {
+        logError: function (error) {
             console.log("error when displaying position on map");
             switch (error.code) {
                 case error.PERMISSION_DENIED:

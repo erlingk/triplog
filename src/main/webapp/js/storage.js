@@ -28,7 +28,7 @@ triplog.storage = (function () {
          * @param latLng
          */
         appendLatLng: function (latLng) {
-            if (!isHtmlStorageSupported()) {
+            if (!isHtmlStorageSupported() || latLng === null) {
                 return;
             }
 

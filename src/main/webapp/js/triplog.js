@@ -2,11 +2,9 @@
 
 /**
  * Class for handling a trip.
- * Will record a route on Google Map that is used when travelling from A to B.
- * In addition items like purpose, start/stop time and start/stop address is recorded.
+ * Will record the route on Google Map when travelling from A to B.
+ * Items like tripname, purpose, start/stop time and start/stop address is also recorded.
  * The user must press the Start button when starting, and Stop button when stopping.
- * Knockout library is used as MVC
- *
  *
  * @constructor
  */
@@ -20,13 +18,13 @@ triplog.ViewModel = function () {
         lastLatLng = null,
         clockTimerId = null,
         positionTimerId = null,
-        isDepTimeUpdated = true,
-        isDepAddrUpdated = true,
-        isArrTimeUpdated = true,
-        isArrAddrUpdated = true,
+        updateDepTime = true,
+        updateDepAddr = true,
+        updateArrTime = true,
+        updateArrAddr = true,
         state,
         stateEnum = {
-            "BEGIN": "begin",
+            "INIT": "init",
             "STARTED": "started",
             "STOPPED": "stopped"
         };
@@ -56,19 +54,20 @@ triplog.ViewModel = function () {
         console.log("initialize");
         ko.applyBindings(viewModel);
 
-        state = stateEnum.BEGIN;
+        state = stateEnum.INIT;
 
-        if (!triplog.storage.isWaypointStorageEmpty()) {
-            viewModel.resumeTrip();
+        if (triplog.storage.isWaypointStorageEmpty()) {
+            triplog.mapUtil.getPosition(viewModel.createMap, viewModel.createMapPosNotAvailable); // createMap as callback
         } else {
-            triplog.mapUtil.getPosition(viewModel.show_map); // show_map as callback
+            // If there are stored waypoints, we will try to resume trip where we left off
+            viewModel.resumeTrip();
         }
     };
 
     viewModel.start = function () {
         console.log("start");
-        state = stateEnum.STARTED;
 
+        state = stateEnum.STARTED;
         viewModel.isDepartureVisible(false);
         viewModel.isArrivalVisible(true);
         viewModel.isStartBtnVisible(false);
@@ -78,14 +77,15 @@ triplog.ViewModel = function () {
         triplog.storage.storeDeparture(viewModel.depAddress(), viewModel.depDate(), viewModel.depTime());
         triplog.storage.appendLatLng(lastLatLng);
 
-        triplog.mapUtil.getPosition(viewModel.show_map);
+        triplog.mapUtil.getPosition(viewModel.createMap, viewModel.createMapPosNotAvailable);
+
     };
 
-    viewModel.show_map = function (position) {
+    viewModel.createMap = function (position) {
         var latLng = triplog.mapUtil.getLatLng(position),
-            mapDepCanvas = document.getElementById('map-departure-canvas'),
-            mapArrCanvas = document.getElementById('map-arrival-canvas'),
-            mapCanvas = state === stateEnum.BEGIN ? mapDepCanvas : mapArrCanvas;
+            mapCanvas = state === stateEnum.INIT ? viewModel.getDepCanvas() : viewModel.getArrCanvas();
+
+        console.log("createMap");
 
         map = triplog.mapUtil.createMap(latLng, mapCanvas);
         marker = triplog.mapUtil.createMarker(latLng, map);
@@ -93,13 +93,26 @@ triplog.ViewModel = function () {
         if (triplog.storage.getAllWaypoints().length > 1 && state === stateEnum.STARTED) {
             viewModel.drawStoredWaypoints();
         }
-        viewModel.startTimers();
-    };
 
-    viewModel.startTimers = function () {
         viewModel.stopTimers(); // Stop old timers if any
         viewModel.startClockTimer();
         viewModel.startPositionTimer();
+    };
+
+    viewModel.createMapPosNotAvailable = function (posError) {
+        var latLng = triplog.mapUtil.getLatLngFromCoordinates(51.519670, -0.127348), // London as default
+            mapCanvas = state === stateEnum.INIT ? viewModel.getDepCanvas() : viewModel.getArrCanvas(),
+            directionString = state === stateEnum.INIT ? "avreise" : "ankomst";
+
+        console.log("createMapPosNotAvailable");
+        map = triplog.mapUtil.createMap(latLng, mapCanvas);
+        marker = triplog.mapUtil.createMarker(latLng, map);
+
+        viewModel.stopTimers(); // Stop old timers if any
+        viewModel.startClockTimer();
+
+        alert("Posisjon ikke tilgjengelig. Vennligst oppdater " + directionString + " addresse manuelt");
+        triplog.mapUtil.logError(posError);
     };
 
     viewModel.startClockTimer = function () {
@@ -118,6 +131,18 @@ triplog.ViewModel = function () {
         console.log("updatePosition");
         var newLatLng = triplog.mapUtil.getLatLng(position);
 
+        if ((state === stateEnum.INIT && !updateDepAddr)) {
+            // return if departure address is manually edited
+            return;
+        }
+        if (state === stateEnum.STARTED && !updateArrAddr) {
+            // return if arrival address is manually edited
+            return;
+        }
+        if (state === stateEnum.STOPPED) {
+            return;
+        }
+
         map.panTo(newLatLng);
         marker.setPosition(newLatLng);
         triplog.mapUtil.getAddress(newLatLng, viewModel.setAddress);
@@ -135,10 +160,10 @@ triplog.ViewModel = function () {
     };
 
     viewModel.setAddress = function (address) {
-        if (state === stateEnum.BEGIN && isDepAddrUpdated) {
+        if (state === stateEnum.INIT && updateDepAddr) {
             viewModel.isStartBtnVisible(true);
             viewModel.depAddress(address);
-        } else if (state === stateEnum.STARTED && isArrAddrUpdated) {
+        } else if (state === stateEnum.STARTED && updateArrAddr) {
             viewModel.isStopBtnVisible(true);
             viewModel.arrAddress(address);
         }
@@ -149,30 +174,55 @@ triplog.ViewModel = function () {
             date = dateTime.format("DD-MM-YYYY"),
             time = dateTime.format("HH:mm:ss");
 
-        if (state === stateEnum.BEGIN && isDepTimeUpdated) {
+        if (state === stateEnum.INIT && updateDepTime) {
             viewModel.depDate(date);
             viewModel.depTime(time);
 
-        } else if (state === stateEnum.STARTED && isArrTimeUpdated) {
+        } else if (state === stateEnum.STARTED && updateArrTime) {
             viewModel.arrDate(date);
             viewModel.arrTime(time);
         }
     };
 
-    viewModel.depTimeChanged = function () {
-        isDepTimeUpdated = false;
+    // If time or address is changed manually, we don't want automatically updates anymore
+    viewModel.depTimeChangedManually = function () {
+        updateDepTime = false;
+    };
+    viewModel.arrTimeChangedManually = function () {
+        updateArrTime = false;
+    };
+    viewModel.depAddrChangedManually = function () {
+        updateDepAddr = false;
+    };
+    viewModel.arrAddrChangedManually = function () {
+        updateArrAddr = false;
     };
 
-    viewModel.arrTimeChanged = function () {
-        isArrTimeUpdated = false;
+    // Called when departure address is changed manually, focus is lost and the editing is regarded as ready
+    viewModel.depAddrReady = function () {
+        console.log("depAddrReady: " + viewModel.depAddress());
+        if (state === stateEnum.INIT) {
+            viewModel.isStartBtnVisible(true);
+        }
+        triplog.mapUtil.getLatLngFromAddress(viewModel.depAddress(), viewModel.updateMap);
     };
 
-    viewModel.depAddrChanged = function () {
-        isDepAddrUpdated = false;
+    // Called when arrival address is changed manually, focus is lost and the editing is regarded as ready
+    viewModel.arrAddrReady = function () {
+        console.log("arrAddrReady: " + viewModel.arrAddress());
+        if (state === stateEnum.STARTED) {
+            viewModel.isStopBtnVisible(true);
+        }
+        triplog.mapUtil.getLatLngFromAddress(viewModel.arrAddress(), viewModel.updateMap);
     };
 
-    viewModel.arrAddrChanged = function () {
-        isArrAddrUpdated = false;
+    viewModel.updateMap = function (latLng) {
+        map.panTo(latLng);
+        marker.setPosition(latLng);
+        if (lastLatLng !== null && state === stateEnum.STARTED) {
+            triplog.mapUtil.drawRoute(map, lastLatLng, latLng);
+        }
+        lastLatLng = latLng;
     };
 
     viewModel.resumeTrip = function () {
@@ -189,14 +239,12 @@ triplog.ViewModel = function () {
         viewModel.isArrivalVisible(true);
         viewModel.isStartBtnVisible(false);
 
-        triplog.mapUtil.getPosition(viewModel.show_map); // show_map as callback
+        triplog.mapUtil.getPosition(viewModel.createMap, viewModel.createMapPosNotAvailable); // createMap as callback
     };
 
     viewModel.drawStoredWaypoints = function () {
         var waypoints = triplog.storage.getAllWaypoints(),
             lastLatLng = null;
-
-        console.log("draw stored waypoints: " + waypoints.length);
 
         _.each(waypoints, function (latLng) {
             if (lastLatLng !== null && map !== null) {
@@ -206,6 +254,14 @@ triplog.ViewModel = function () {
             }
             lastLatLng = latLng;
         });
+    };
+
+    viewModel.getDepCanvas = function () {
+        return document.getElementById('map-departure-canvas');
+    };
+
+    viewModel.getArrCanvas = function () {
+        return document.getElementById('map-arrival-canvas');
     };
 
     viewModel.stop = function () {
